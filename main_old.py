@@ -14,8 +14,8 @@ from torch.autograd import Variable
 import torchnet.meter as meter
 import pandas as pd
 
-# from OldCapsNet import CapsNet, ReconstructionNet, CapsNetWithReconstruction, MarginLoss
-from CapsNet import CapsNet, ReconstructionNet, CapsNetWithReconstruction, MarginLoss
+from OldCapsNet import CapsNet, ReconstructionNet, CapsNetWithReconstruction, MarginLoss
+# from CapsNet import CapsNet, ReconstructionNet, CapsNetWithReconstruction, MarginLoss
 from utils import AverageMeter, my_pil_loader, save_plot, save_auc
 from DoubleBranch.DoubleBranch import *
 from DiscAware.DiscAware import *

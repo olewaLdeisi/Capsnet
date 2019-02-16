@@ -77,25 +77,18 @@ class CapsLayer(nn.Module):
         v = self.routing_module(u_predict)
         return v
 
-i
+
 class PrimaryCapsLayer(nn.Module):
-    def __init__(self, input_channels, output_caps, output_dim, kernel_size, stride,block_size=3,drop_prob=0.2,block=True):
+    def __init__(self, input_channels, output_caps, output_dim, kernel_size, stride):
         # 256, 32, 8, kernel_size=9, stride=2
         super(PrimaryCapsLayer, self).__init__()
         self.conv = nn.Conv2d(input_channels, output_caps * output_dim, kernel_size=kernel_size, stride=stride)
         self.input_channels = input_channels
         self.output_caps = output_caps
         self.output_dim = output_dim
-        self.drop_prob = drop_prob
-        self.block_size = block_size
-        self.block = block
-        if self.block:
-            self.dropout = DropBlock2D(block_size=self.block_size, drop_prob=self.drop_prob)
 
     def forward(self, input):
         out = self.conv(input)
-        if self.block:
-            out = self.dropout(out)
         N, C, H, W = out.size()
         out = out.view(N, self.output_caps, self.output_dim, H, W)
 
@@ -112,10 +105,10 @@ class CapsNet(nn.Module):
         self.conv1 = nn.Conv2d(3, 256, kernel_size=9, stride=1) # in - k + 1
         self.block = block
         if self.block:
-            self.dropout = DropBlock2D(block_size=sblock_size, drop_prob=drop_prob)
+            self.dropout = DropBlock2D(block_size=block_size, drop_prob=drop_prob)
         self.bn = nn.BatchNorm2d(256) # 与源码不同
         # 主胶囊加入dropblock
-        self.primaryCaps = PrimaryCapsLayer(256, 32, 8, kernel_size=9, stride=2,block_size=block_size,drop_prob=drop_prob,block=block) # (in - k + 1 ) / s  # outputs 6*6
+        self.primaryCaps = PrimaryCapsLayer(256, 32, 8, kernel_size=9, stride=2) # (in - k + 1 ) / s  # outputs 6*6
         # self.num_primaryCaps = 32 * 6 * 6
         self.img_size = img_size
         npc = (self.img_size - 8 - 8) // 2
@@ -132,6 +125,7 @@ class CapsNet(nn.Module):
         x = self.primaryCaps(x)# 1152*8   ===  6 * 6 * 8 * 32
         x = self.digitCaps(x) # 2 * 16
         probs = x.pow(2).sum(dim=2).sqrt() # 2
+
         return x, probs
 
 
