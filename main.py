@@ -18,8 +18,6 @@ import pandas as pd
 from CapsNet import CapsNet, ReconstructionNet, CapsNetWithReconstruction, MarginLoss
 from utils import AverageMeter, my_pil_loader, save_plot, save_auc
 from DoubleBranch.DoubleBranch import *
-from DiscAware.DiscAware import *
-from DiscAware.Resnet50 import *
 from dataset import Dataset
 
 # Training settings
@@ -139,7 +137,7 @@ def load_data(path):
         train_loader: The DataLoader of train dataset
         test_loader:  The DataLoader of test dataset
     """
-    kwargs = {'num_workers': 1, 'pin_memory': True, 'drop_last': True} if args.cuda else {'drop_last': True}
+    kwargs = {'num_workers': 4, 'pin_memory': True, 'drop_last': True} if args.cuda else {'drop_last': True}
 
     # normalize = transforms.Normalize((0.957, 0.647, 0.349), (0.080, 0.148, 0.153))
     # normalize = transforms.Normalize((0.640, 0.435, 0.240, 0.440), (0.475, 0.342, 0.214, 0.380))
