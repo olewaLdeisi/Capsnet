@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from dropchannel import DropChannel
 
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
@@ -57,6 +58,7 @@ class CapsLayer(nn.Module):
         self.drop_prob = drop_prob
         self.block_size = block_size
         # self.dropout = nn.Dropout2d(p=0.2) # 与源码不同的地方
+
         if block:
             self.dropout = DropBlock2D(block_size=self.block_size, drop_prob=self.drop_prob)
         else:
@@ -131,8 +133,11 @@ class CapsNet(nn.Module):
 
 class ReconstructionNet(nn.Module):
     # def __init__(self, n_dim=16, n_classes=10):
-    def __init__(self, n_dim=16, n_classes=2,img_size=224):
+    def __init__(self, n_dim=16, n_classes=2,img_size=224,dropchannel=False):
         super(ReconstructionNet, self).__init__()
+        self.dropchannel = dropchannel
+        if self.dropchannel:
+            self.dropchannel1 = DropChannel(0.9, 0.5)
         self.fc1 = nn.Linear(n_dim * n_classes, 1024)
         self.fc2 = nn.Linear(1024, 2048)
         self.fc3 = nn.Linear(2048, img_size * img_size * 3)
@@ -148,11 +153,14 @@ class ReconstructionNet(nn.Module):
             mask = mask.cuda()
         mask.scatter_(1, target.view(-1, 1), 1.)
         mask = mask.unsqueeze(2)
+        if self.dropchannel:
+            x = self.dropchannel1(x)
         x = x * mask
         x = x.view(-1, self.n_dim * self.n_classes)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = torch.sigmoid(self.fc3(x))
+        # x = F.sigmoid(self.fc3(x))
+        x = nn.Sigmoid()(self.fc3(x))
         return x
 
 

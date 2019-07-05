@@ -1,0 +1,15 @@
+--batch_size=2
+--test_batch_size=2
+--epochs=100
+--lr=0.0001
+--seed=1
+--log_interval=1
+--routing_iterations=3
+--reconstruction_alpha=0.0005
+--weight_decay=0.0005
+--input_size=112
+--output_size=112
+--with_reconstruction
+--drop_prob=0.5
+--with_4c
+--save_path=experiment/CapsNet_size112_inchannel4_dropout_p0.5_epoch100

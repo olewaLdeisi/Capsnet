@@ -26,3 +26,33 @@ def color2label(data):
         example = example.fill_(i+256)
         data = torch.where(data==uq[uqlen-1-i],example,data)
     return (data-256)
+
+'''
+TP : 正类判定为正类
+TN : 负类判定为负类
+FP : 负类判定为正类
+FN : 正类判定为负类
+'''
+
+def precision(TP,TN,FP,FN):
+    return TP / (TP + FP)
+
+# or sensitivity
+# 正类的准确率
+def recall(TP,TN,FP,FN):
+    return TP / (TP + FN)
+
+def accuracy(TP,TN,FP,FN):
+    return (TP + TN) / (TP + TN + FP + FN)
+
+# 负类的准确率
+def specificity(TP,TN,FP,FN):
+    return TN / (TN + FP)
+
+def Baccuracy(TP,TN,FP,FN):
+    return (recall(TP,TN,FP,FN) + specificity(TP,TN,FP,FN)) / 2
+
+def F1_measure(TP,TN,FP,FN):
+    p = precision(TP,TN,FP,FN)
+    r = recall(TP,TN,FP,FN)
+    return 2 * p * r / (p + r)

@@ -109,6 +109,101 @@ class Dataset_cg(data.Dataset):
         return img, mark , self.labellist.index(label)
 
 class Dataset(data.Dataset):
+    '''capsnet'''
+    def __init__(self, class_num, data_path, file_path, grayscale=False, transform=None,p=0.0):
+        '''
+        :param class_num: 类的数量，默认为27（int or list）
+        :param data_path: txt路径及文件名 （str）
+        :param file_path: 数据集根目录 （str）
+        :param grayscale: 是否打开为灰度图，默认为False （bool）
+        :param transform: 预处理函数，默认为None
+        :param p: 水平翻转概率
+        '''
+        self.data_path = data_path
+        self.file_path = file_path
+        self.grayscale = grayscale
+        self.transform = transform
+        self.p = p
+        self.img = [[] for i in range(len(classes))]
+        self.label = [[] for i in range(len(classes))]
+        # 读取.txt文件数据
+        with open(self.data_path, 'r') as f:
+            for line in f:
+                img, label = line.strip().split('@')
+                self.img[eval(label)].append(img)
+                self.label[eval(label)].append(label)
+        if isinstance(class_num, int):
+            # python3
+            # self.img = reduce(operator.add, self.img[:class_num])
+            # self.label = reduce(operator.add, self.label[:class_num])
+            # python2
+            self.bincount = [len(i) for i in self.label]  # 各个类的样本数
+            # rand_index_list = [random.sample(range(self.bincount[i]), 20) for i in range(class_num)]
+            # self.img = [self.img[i][j] for i in range(class_num) for j in rand_index_list[i]]
+            # self.label = [self.label[i][j] for i in range(class_num) for j in rand_index_list[i]]
+            self.img = reduce(operator.add, self.img[:class_num])
+            self.label = reduce(operator.add, self.label[:class_num])
+            self.labellist = [i for i in range(class_num)]
+        elif isinstance(class_num, list):
+            # python3
+            # self.img = reduce(operator.add, [self.img[i] for i in class_num])
+            # self.label = reduce(operator.add, [self.label[i] for i in class_num])
+            # python2
+            self.bincount = [len(self.label[i]) for i in class_num]
+            # rand_index_list = [random.sample(range(self.bincount[i]), 20) for i in range(len(class_num))]
+            # self.img = [self.img[i][j] for index, i in enumerate(class_num) for j in rand_index_list[index]]
+            # self.label = [self.label[i][j] for index, i in enumerate(class_num) for j in rand_index_list[index]]
+            self.img = reduce(operator.add, [self.img[i] for i in class_num])
+            self.label = reduce(operator.add, [self.label[i] for i in class_num])
+            self.labellist = [i for i in class_num]
+
+    def __len__(self):
+        return len(self.img)
+
+    def __getitem__(self, index):
+        img_path = os.path.join(self.file_path, 'img/' + self.img[index])
+        mark1_path = os.path.join(self.file_path, 'mark1/' + self.img[index])
+        mark2_path = os.path.join(self.file_path, 'mark2/' + self.img[index])
+        # 是否打开为灰度图
+        if self.grayscale:
+            img = Image.open(img_path).convert('L')
+        else:
+            img = Image.open(img_path).convert('RGB')
+        # 视杯视盘语义分割
+        mark1 = Image.open(mark1_path).convert('L')
+        mark2 = Image.open(mark2_path).convert('L')
+
+        # 0.5 概率水平翻转
+        if self.p > 0:
+            if random.random() < self.p:
+                img = F_trans.hflip(img)
+                mark1 = F_trans.hflip(mark1)
+                mark2 = F_trans.hflip(mark2)
+        # 数据预处理
+        if self.transform:
+            img = self.transform(img)
+            mark1 = self.transform(mark1)
+            mark2 = self.transform(mark2)
+            # 224
+            # img = transforms.Normalize((0.7723, 0.5000, 0.2962), (0.1560, 0.1457, 0.1441))(img)
+            # mark1 = transforms.Normalize((0.2407,), (0.2709,))(mark1)
+            # mark2 = transforms.Normalize((0.1634,), (0.1751,))(mark2)
+            # 112
+            img = transforms.Normalize((0.7728, 0.5005, 0.2967), (0.1547, 0.1427, 0.1426))(img)
+            mark1 = transforms.Normalize((0.2407,), (0.2693,))(mark1)
+            mark2 = transforms.Normalize((0.1634,), (0.1736,))(mark2)
+            # 28
+            # img = transforms.Normalize((0.7720, 0.4998, 0.2959), (0.1500, 0.1307, 0.1390))(img)
+            # mark1 = transforms.Normalize((0.2407,), (0.2603,))(mark1)
+            # mark2 = transforms.Normalize((0.1634,), (0.1651,))(mark2)
+            mark = [mark1,mark2]
+
+        label = eval(self.label[index])
+        # 返回图片，对应标签
+        # print(self.img[index],self.labellist.index(label))
+        return img, mark , self.labellist.index(label)
+
+class OldDataset(data.Dataset):
     def __init__(self, class_num, data_path, file_path, grayscale=False, transform=None,p=0.0):
         '''
         :param class_num: 类的数量，默认为27（int or list）
@@ -195,9 +290,9 @@ class Dataset(data.Dataset):
         # mark2 = transforms.Normalize((0.1639,), (0.1773,))(mark2)
 
         # 28
-        img = transforms.Normalize((0.7890, 0.5129, 0.3151),(0.1535, 0.1400, 0.1483))(img)
-        mark1 = transforms.Normalize((0.2784,), (0.2890,))(mark1)
-        mark2 = transforms.Normalize((0.1781,), (0.1892,))(mark2)
+        # img = transforms.Normalize((0.7890, 0.5129, 0.3151),(0.1535, 0.1400, 0.1483))(img)
+        # mark1 = transforms.Normalize((0.2784,), (0.2890,))(mark1)
+        # mark2 = transforms.Normalize((0.1781,), (0.1892,))(mark2)
 
         # img = transforms.Normalize((0.3938,  0.3938,  0.2248), ( 0.1569,  0.1470,  0.1451))(img)
         # mark1 = transforms.Normalize((0.1686,), (0.2723,))(mark1)
@@ -211,7 +306,106 @@ class Dataset(data.Dataset):
         # print(self.img[index],self.labellist.index(label))
         return img, mark , self.labellist.index(label)
 
-if __name__ == '__main__':
+class ch_Dataset(data.Dataset):
+    def __init__(self, class_num, data_path, file_path, grayscale=False, transform=None,p=0.0):
+        '''
+        :param class_num: 类的数量，默认为27（int or list）
+        :param data_path: txt路径及文件名 （str）
+        :param file_path: 数据集根目录 （str）
+        :param grayscale: 是否打开为灰度图，默认为False （bool）
+        :param transform: 预处理函数，默认为None
+        :param p: 水平翻转概率
+        '''
+        self.data_path = data_path
+        self.file_path = file_path
+        self.grayscale = grayscale
+        self.transform = transform
+        self.p = p
+        self.img = [[] for i in range(len(classes))]
+        self.label = [[] for i in range(len(classes))]
+        # 读取.txt文件数据
+        with open(self.data_path, 'r') as f:
+            for line in f:
+                img, label = line.strip().split('@')
+                self.img[eval(label)].append(img)
+                self.label[eval(label)].append(label)
+        if isinstance(class_num, int):
+            # python3
+            # self.img = reduce(operator.add, self.img[:class_num])
+            # self.label = reduce(operator.add, self.label[:class_num])
+            # python2
+            self.bincount = [len(i) for i in self.label]  # 各个类的样本数
+            # rand_index_list = [random.sample(range(self.bincount[i]), 20) for i in range(class_num)]
+            # self.img = [self.img[i][j] for i in range(class_num) for j in rand_index_list[i]]
+            # self.label = [self.label[i][j] for i in range(class_num) for j in rand_index_list[i]]
+            self.img = reduce(operator.add, self.img[:class_num])
+            self.label = reduce(operator.add, self.label[:class_num])
+            self.labellist = [i for i in range(class_num)]
+        elif isinstance(class_num, list):
+            # python3
+            # self.img = reduce(operator.add, [self.img[i] for i in class_num])
+            # self.label = reduce(operator.add, [self.label[i] for i in class_num])
+            # python2
+            self.bincount = [len(self.label[i]) for i in class_num]
+            # rand_index_list = [random.sample(range(self.bincount[i]), 20) for i in range(len(class_num))]
+            # self.img = [self.img[i][j] for index, i in enumerate(class_num) for j in rand_index_list[index]]
+            # self.label = [self.label[i][j] for index, i in enumerate(class_num) for j in rand_index_list[index]]
+            self.img = reduce(operator.add, [self.img[i] for i in class_num])
+            self.label = reduce(operator.add, [self.label[i] for i in class_num])
+            self.labellist = [i for i in class_num]
+
+    def __len__(self):
+        return len(self.img)
+
+    def __getitem__(self, index):
+        img_path = os.path.join(self.file_path, 'img/' + self.img[index])
+        # mark1_path = os.path.join(self.file_path, 'mark1/' + self.img[index])
+        # mark2_path = os.path.join(self.file_path, 'mark2/' + self.img[index])
+        # 是否打开为灰度图
+        if self.grayscale:
+            img = Image.open(img_path).convert('L')
+        else:
+            img = Image.open(img_path).convert('RGB')
+        # # 视杯视盘语义分割
+        # mark1 = Image.open(mark1_path).convert('L')
+        # mark2 = Image.open(mark2_path).convert('L')
+
+        # 0.5 概率水平翻转
+        if self.p > 0:
+            if random.random() < self.p:
+                img = F_trans.hflip(img)
+                # print('p>0 :'+str(self.p))
+                # mark1 = F_trans.hflip(mark1)
+                # mark2 = F_trans.hflip(mark2)
+        # 数据预处理
+        if self.transform:
+            img = self.transform(img)
+            # mark1 = self.transform(mark1)
+            # mark2 = self.transform(mark2)
+            # 224
+            # img = transforms.Normalize((0.2935, 0.2103, 0.1221), (0.1997, 0.1666, 0.1541))(img)
+
+            # img = transforms.Normalize((0.7723, 0.5000, 0.2962), (0.1560, 0.1457, 0.1441))(img)
+            # mark1 = transforms.Normalize((0.2407,), (0.2709,))(mark1)
+            # mark2 = transforms.Normalize((0.1634,), (0.1751,))(mark2)
+            # 112
+            img = transforms.Normalize((0.3713, 0.2661, 0.1545), (0.2107, 0.1789, 0.1703))(img)
+
+            # img = transforms.Normalize((0.7720, 0.4998, 0.2960), (0.1550, 0.1435, 0.1429))(img)
+            # mark1 = transforms.Normalize((0.2407,), (0.2693,))(mark1)
+            # mark2 = transforms.Normalize((0.1634,), (0.1736,))(mark2)
+            # 28
+            # img = transforms.Normalize((0.7720, 0.4998, 0.2959), (0.1500, 0.1307, 0.1390))(img)
+            # mark1 = transforms.Normalize((0.2407,), (0.2603,))(mark1)
+            # mark2 = transforms.Normalize((0.1634,), (0.1651,))(mark2)
+            # mark = [mark1,mark2]
+
+        label = eval(self.label[index])
+        # 返回图片，对应标签
+        # print(self.img[index],self.labellist.index(label))
+        return img, 0 , self.labellist.index(label)
+
+def org_main():
     logging.basicConfig(filename='loss.log', level=logging.INFO, filemode='a',
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M', )
     # 一些配置参数
@@ -220,8 +414,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_gpu', type=int, default=1, help='是否使用gpu加速')
     parser.add_argument('--crop', type=int, default=1, help='是否中心切割')
     parser.add_argument('--class_num', type=str, default='27', help='分类数量')
-    parser.add_argument('--input_height', type=int, default=32, help='切割后图片高度')
-    parser.add_argument('--input_weight', type=int, default=32, help='切割后图片宽度')
+    parser.add_argument('--input_height', type=int, default=28, help='切割后图片高度')
+    parser.add_argument('--input_weight', type=int, default=28, help='切割后图片宽度')
     parser.add_argument('--output_height', type=int, default=28, help='Resize后图片高度')
     parser.add_argument('--output_weight', type=int, default=28, help='Resize后图片宽度')
     parser.add_argument('--data_path', type=str, default='./data/', help='加载数据集的txt路径文件名')
@@ -245,29 +439,30 @@ if __name__ == '__main__':
     logging.info(args)
 
     if args.crop:
-        transform = transforms.Compose([transforms.Resize(args.input_height),
+        transform = transforms.Compose([transforms.Resize((args.input_height, args.input_weight)),
                                         transforms.CenterCrop((args.output_height, args.output_weight)),
-                                        # transforms.ToTensor()
+                                        transforms.ToTensor()
                                         ])
     else:
-        transform = transforms.Compose([transforms.Resize(args.output_height),
-                                        # transforms.ToTensor()
+        transform = transforms.Compose([transforms.Resize((args.output_height, args.output_weight)),
+                                        transforms.ToTensor()
                                         ])
     # args.class_num = '[1,2,6,10,16,18,24]'
-    # 因为图片是 3*32*32的，但是pytorch接受的输入是4维的，所以要添加一个1 的维度，相当于变成了1*3*32*32
     train_set = Dataset(class_num=eval(args.class_num), data_path=os.path.join(args.data_path, 'train.txt'),
                         file_path=args.file_path, grayscale=False, transform=transform)
-    train_loader = DataLoader(train_set, batch_size=1, shuffle=False, num_workers=4, drop_last=T)
+    train_loader = DataLoader(train_set, batch_size=1, shuffle=False, num_workers=4, drop_last=True)
     val_set = Dataset(class_num=eval(args.class_num), data_path=os.path.join(args.data_path, 'test.txt'),
                       file_path=args.file_path, grayscale=False, transform=transform)
     val_loader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=4, drop_last=True)
     dataloader = {'train': train_loader, 'val': val_loader}
     total = len(train_set) + len(val_set)
+    total = len(train_set)
     img_sum = 0.
     mark1_sum = 0.
     mark2_sum = 0.
     for phase in ['train', 'val']:
         print("=" * 5 + phase+" begin" + "=" * 5)
+        # print(dataloader[phase])
         for i, (img, mark, label) in enumerate(dataloader[phase]):
             # pass
             img = img.cuda(0)
@@ -284,7 +479,7 @@ if __name__ == '__main__':
             mark2 = mark2.view(mark2.size(0), mark2.size(1), -1)
             temp = torch.sum(mark2, 2).squeeze(0)
             mark2_sum = temp if phase == 'train' and i == 0 else mark2_sum + temp
-
+        break
     img_mean = img_sum / (args.output_weight * args.output_height * total)
     mark1_mean = mark1_sum / (args.output_weight * args.output_height * total)
     mark2_mean = mark2_sum / (args.output_weight * args.output_height * total)
@@ -308,7 +503,7 @@ if __name__ == '__main__':
             mark2 = mark2.view(mark2.size(0), mark2.size(1), -1)
             temp = torch.sum((mark2[:, 0] - mark2_mean[0]) ** 2, 1)
             mark2_sum = temp if phase == 'train' and i == 0 else mark2_sum + temp
-
+        break
     img_std = torch.sqrt(img_sum / (args.output_weight * args.output_height * total))
     mark1_std = torch.sqrt(mark1_sum / (args.output_weight * args.output_height * total))
     mark2_std = torch.sqrt(mark2_sum / (args.output_weight * args.output_height * total))
@@ -349,3 +544,109 @@ if __name__ == '__main__':
         break
     print(mean, std)
     '''
+
+def main():
+    logging.basicConfig(filename='loss.log', level=logging.INFO, filemode='a',
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M', )
+    # 一些配置参数
+    parser = argparse.ArgumentParser(description='Train for Classify')
+    parser.add_argument('--model_name', type=str, default='resnet50', help='模型名')
+    parser.add_argument('--use_gpu', type=int, default=1, help='是否使用gpu加速')
+    parser.add_argument('--crop', type=int, default=0, help='是否中心切割')
+    parser.add_argument('--class_num', type=str, default='2', help='分类数量')
+    parser.add_argument('--input_height', type=int, default=28, help='切割后图片高度')
+    parser.add_argument('--input_weight', type=int, default=28, help='切割后图片宽度')
+    parser.add_argument('--output_height', type=int, default=28, help='Resize后图片高度')
+    parser.add_argument('--output_weight', type=int, default=28, help='Resize后图片宽度')
+    parser.add_argument('--data_path', type=str, default='./data/', help='加载数据集的txt路径文件名')
+    parser.add_argument('--file_path', type=str, default='./data/', help='数据集根目录')
+    parser.add_argument('--lr', type=float, default=0.0001, help='学习率')
+    parser.add_argument('--num_epochs', type=int, default=200, help='epoch总数')
+    parser.add_argument('--batch_size', type=int, default=5, help='mini-batch大小')
+    parser.add_argument('--momentum', type=float, default=0.9, help='优化器动量因子')
+    parser.add_argument('--weight_decay', type=float, default=0, help='优化器权重衰减值')
+    parser.add_argument('--step_size', type=int, default=7, help='学习率更新间隔')
+    parser.add_argument('--gamma', type=float, default=0.1, help='学习率衰减因子')
+    parser.add_argument('--pretrained', type=int, default=0, help='是否使用预训练模型参数')
+    parser.add_argument('--batchnormal', type=int, default=1, help='是否加入batchnormal层')
+    parser.add_argument('--poolmode', type=str, default='Max', help='池化方式')
+    parser.add_argument('--dataset_name', type=str, default='wikiart', help='数据集名字')
+    parser.add_argument('--viz', type=int, default=1, help='是否使用visdom可视化')
+    parser.add_argument('--device_id', type=int, default=0, help='使用GPU的ID')
+    # parser.add_argument('--normal',type=str,default='(0.5,0.5,0.5),(0.5,0.5,0.5)',help='归一化均值与标准差')
+    parser.add_argument('--decay_scheduler', type=int, default=1, help='是否衰减学习率')
+    args = parser.parse_args()
+    logging.info(args)
+
+    if args.crop:
+        transform = transforms.Compose(
+            [transforms.Resize((args.input_height, args.input_weight)), transforms.CenterCrop((args.output_height, args.output_weight)),
+             transforms.ToTensor()])
+    else:
+        transform = transforms.Compose([transforms.Resize((args.input_height, args.input_weight)), transforms.ToTensor()])
+    # args.class_num = '[1,2,6,10,16,18,24]'
+    train_set = Dataset(class_num=eval(args.class_num), data_path=os.path.join(args.data_path, 'train.txt'),
+                        file_path=args.file_path, grayscale=False, transform=transform)
+    train_loader = DataLoader(train_set, batch_size=1, shuffle=False, num_workers=4, drop_last=True)
+    val_set = Dataset(class_num=eval(args.class_num), data_path=os.path.join(args.data_path, 'test.txt'),
+                      file_path=args.file_path, grayscale=False, transform=transform)
+    val_loader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=4, drop_last=True)
+    dataloader = {'train': train_loader, 'val': val_loader}
+    total = len(train_set) + len(val_set)
+    total = len(train_set)
+    img_sum = 0.
+    mark1_sum = 0.
+    mark2_sum = 0.
+    for phase in ['train', 'val']:
+        print("=" * 5 + phase + " begin" + "=" * 5)
+        # print(dataloader[phase])
+        for i, (img, mark, label) in enumerate(dataloader[phase]):
+            # pass
+            img = img.cuda(0)
+            img = img.view(img.size(0), img.size(1), -1)
+            temp = torch.sum(img, 2).squeeze(0)
+            img_sum = temp if phase == 'train' and i == 0 else img_sum + temp
+
+            # mark1 = mark[0].cuda(0)
+            # mark1 = mark1.view(mark1.size(0), mark1.size(1), -1)
+            # temp = torch.sum(mark1, 2).squeeze(0)
+            # mark1_sum = temp if phase == 'train' and i == 0 else mark1_sum + temp
+            #
+            # mark2 = mark[1].cuda(0)
+            # mark2 = mark2.view(mark2.size(0), mark2.size(1), -1)
+            # temp = torch.sum(mark2, 2).squeeze(0)
+            # mark2_sum = temp if phase == 'train' and i == 0 else mark2_sum + temp
+        break
+    img_mean = img_sum / (args.output_weight * args.output_height * total)
+    # mark1_mean = mark1_sum / (args.output_weight * args.output_height * total)
+    # mark2_mean = mark2_sum / (args.output_weight * args.output_height * total)
+
+    for phase in ['train', 'val']:
+        for i, (img, mark, label) in enumerate(dataloader[phase]):
+            img = img.cuda(0)
+            img = img.view(img.size(0), img.size(1), -1)
+            temp1 = torch.sum((img[:, 0] - img_mean[0]) ** 2, 1)
+            temp2 = torch.sum((img[:, 1] - img_mean[1]) ** 2, 1)
+            temp3 = torch.sum((img[:, 2] - img_mean[2]) ** 2, 1)
+            temp = torch.cat((temp1, temp2, temp3), 0)
+            img_sum = temp if phase == 'train' and i == 0 else img_sum + temp
+
+            # mark1 = mark[0].cuda(0)
+            # mark1 = mark1.view(mark1.size(0), mark1.size(1), -1)
+            # temp = torch.sum((mark1[:, 0] - mark1_mean[0]) ** 2, 1)
+            # mark1_sum = temp if phase == 'train' and i == 0 else mark1_sum + temp
+
+            # mark2 = mark[1].cuda(0)
+            # mark2 = mark2.view(mark2.size(0), mark2.size(1), -1)
+            # temp = torch.sum((mark2[:, 0] - mark2_mean[0]) ** 2, 1)
+            # mark2_sum = temp if phase == 'train' and i == 0 else mark2_sum + temp
+        break
+    img_std = torch.sqrt(img_sum / (args.output_weight * args.output_height * total))
+    # mark1_std = torch.sqrt(mark1_sum / (args.output_weight * args.output_height * total))
+    # mark2_std = torch.sqrt(mark2_sum / (args.output_weight * args.output_height * total))
+    print(img_mean, img_std)
+    # print(mark1_mean, mark1_std)
+    # print(mark2_mean, mark2_std)
+
+if __name__ == '__main__':
+    org_main()
